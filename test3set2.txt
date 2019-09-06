@@ -1,0 +1,455 @@
+create table trip(trip_id varchar(5),trip_source varchar(5),trip_dest varchar(5),trip_start_time time,trip_end_time time,trip_cost int,dyn_fare char);
+	
+
+	
+insert into trip values('tp01','chn','bgl','13:40','15:40',3500,'Y');
+insert into trip values('tp02','bgl','mum','18:20','19:20',6700,'Y');
+insert into trip values('tp03','chn','hyd','09:45','11:10',3000,'Y');
+insert into trip values('tp04','hyd','bgl','12:20','13:25',2700,'N');
+insert into trip values('tp05','mum','ndl','23:00','01:25',4500,'Y');
+insert into trip values('tp06','bgl','ndl','19:40','22:10',5000,'N');
+insert into trip values('tp07','ndl','mum','16:45','17:50',6000,'Y');
+insert into trip values('tp08','mum','bgl','20:20','23:45',5000,'N');
+insert into trip values('tp09','ndl','hyd','11:25','13:45',3000,'N');
+insert into trip values('tp10','hyd','chn','20:30','22:20',4500,'Y');
+insert into trip values('tp11','bgl','chn','23:45','01:05',3900,'Y');
+
+
+mysql> select * from trip;
++---------+-------------+-----------+-----------------+---------------+-----------+----------+
+| trip_id | trip_source | trip_dest | trip_start_time | trip_end_time | trip_cost | dyn_fare |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+
+| tp01    | chn         | bgl       | 13:40:00        | 15:40:00      |      3500 | Y        |
+| tp02    | bgl         | mum       | 18:20:00        | 19:20:00      |      6700 | Y        |
+| tp03    | chn         | hyd       | 09:45:00        | 11:10:00      |      3000 | Y        |
+| tp04    | hyd         | bgl       | 12:20:00        | 13:25:00      |      2700 | N        |
+| tp05    | mum         | ndl       | 23:00:00        | 01:25:00      |      4500 | Y        |
+| tp06    | bgl         | ndl       | 19:40:00        | 22:10:00      |      5000 | N        |
+| tp07    | ndl         | mum       | 16:45:00        | 17:50:00      |      6000 | Y        |
+| tp08    | mum         | bgl       | 20:20:00        | 23:45:00      |      5000 | N        |
+| tp09    | ndl         | hyd       | 11:25:00        | 13:45:00      |      3000 | N        |
+| tp10    | hyd         | chn       | 20:30:00        | 22:20:00      |      4500 | Y        |
+| tp11    | bgl         | chn       | 23:45:00        | 01:05:00      |      3900 | Y        |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+
+11 rows in set (0.00 sec)
+
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else 
+timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as time from trip
+order by time;
+
+mysql> select time(sum(time)) from (
+     select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else
+     timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as time from trip) trip1
+     where (trip_source='chn' and trip_dest='bgl') or (trip_source='bgl' and trip_dest='mum') or (trip_source='mum' and trip_dest='ndl');
+	 
+	 
+	 select trip_source,trip_dest1,trip_dest2,trip_dest3,trip_cost from (
+	 select trip_source,trip_dest1,trip_dest2,trip_dest3,trip_cost,dense_rank() over (order by trip_cost) ran from (
+	 select t1.trip_source,t1.trip_dest as trip_dest1,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,(t1.trip_cost+t2.trip_cost+t3.trip_cost) trip_cost from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+	 join trip t3 on t2.trip_dest=t3.trip_source
+     where t1.trip_source='chn' and t3.trip_dest='ndl') tblcost) tblmin where ran=1;
+
+1	Fetch itinerary details from CHN to NDL which are cheaper
+
+mysql> select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,trip_cost from (
+           select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,trip_cost,dense_rank() over (order by trip_cost) ran from (
+		   
+		   select t1.trip_id trip_id1,t1.trip_source,
+		   t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+		   t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,(t1.trip_cost+t2.trip_cost+t3.trip_cost) trip_cost 
+		   from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+           join trip t3 on t2.trip_dest=t3.trip_source
+           where t1.trip_source='chn' and t3.trip_dest='ndl' 
+		   
+		   ) tblcost) tblmin where ran=1;
++----------+-------------+----------+------------+----------+------------+------------+-----------+
+| trip_id1 | trip_source | trip_id2 | trip_dest1 | trip_id3 | trip_dest2 | trip_dest3 | trip_cost |
++----------+-------------+----------+------------+----------+------------+------------+-----------+
+| tp03     | chn         | tp04     | hyd        | tp06     | bgl        | ndl        |     10700 |
++----------+-------------+----------+------------+----------+------------+------------+-----------+
+1 row in set (0.00 sec)
+
+
+2	Fetch itinerary details from CHN to NDL which have less travel time
+
+		   select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,time,dense_rank() over (order by time) ran from (
+		   select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,addtime(addtime(time1,time2),time3) time from (
+		   
+		   
+           select t1.trip_id trip_id1,t1.trip_source,
+		   t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+		   t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+		   
+		   case when t1.trip_end_time>t1.trip_start_time then timediff(t1.trip_end_time,t1.trip_start_time) else
+		   timediff('24:00:00',timediff(t1.trip_start_time,t1.trip_end_time)) end as time1,
+		   
+		   case when t2.trip_end_time>t2.trip_start_time then timediff(t2.trip_end_time,t2.trip_start_time) else
+		   timediff('24:00:00',timediff(t2.trip_start_time,t2.trip_end_time)) end as time2,
+		   
+		   case when t3.trip_end_time>t3.trip_start_time then timediff(t3.trip_end_time,t3.trip_start_time) else
+		   timediff('24:00:00',timediff(t3.trip_start_time,t3.trip_end_time)) end as time3
+		   
+		   from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+           join trip t3 on t2.trip_dest=t3.trip_source
+           where t1.trip_source='chn' and t3.trip_dest='ndl'
+		   
+		   
+		   )tbldifftime 
+		   ) tbltime) tblmin where ran=1;
+		   
+
+
+
+mysql> select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,time from (
+        select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,time,dense_rank() over (order by time) ran from (
+        select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,addtime(addtime(time1,time2),time3) time from (
+        select t1.trip_id trip_id1,t1.trip_source,
+        t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+        t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+        case when t1.trip_end_time>t1.trip_start_time then timediff(t1.trip_end_time,t1.trip_start_time) else
+        timediff('24:00:00',timediff(t1.trip_start_time,t1.trip_end_time)) end as time1,
+        case when t2.trip_end_time>t2.trip_start_time then timediff(t2.trip_end_time,t2.trip_start_time) else
+        timediff('24:00:00',timediff(t2.trip_start_time,t2.trip_end_time)) end as time2,
+        case when t3.trip_end_time>t3.trip_start_time then timediff(t3.trip_end_time,t3.trip_start_time) else
+        timediff('24:00:00',timediff(t3.trip_start_time,t3.trip_end_time)) end as time3
+        from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+        join trip t3 on t2.trip_dest=t3.trip_source
+        where t1.trip_source='chn' and t3.trip_dest='ndl'
+        )tbldifftime
+        ) tbltime) tblmin where ran=1;
++----------+-------------+----------+------------+----------+------------+------------+----------+
+| trip_id1 | trip_source | trip_id2 | trip_dest1 | trip_id3 | trip_dest2 | trip_dest3 | time     |
++----------+-------------+----------+------------+----------+------------+------------+----------+
+| tp03     | chn         | tp04     | hyd        | tp06     | bgl        | ndl        | 05:00:00 |
++----------+-------------+----------+------------+----------+------------+------------+----------+
+1 row in set (0.00 sec)
+
+3	Fetch itinerary details from CHN to NDL which have less dynamic pricing(assume current_date = 'Sunday')
+
+select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,df1,df2,df3 from (
+           select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,df1,df2,df3,dense_rank() over (order by cnt) ran from (
+		   
+		   select t1.trip_id trip_id1,t1.trip_source,
+		   t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+		   t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+			t1.dyn_fare df1,t3.dyn_fare df2,t3.dyn_fare df3,
+			case when t1.dyn_fare='Y' and t3.dyn_fare='Y' and t3.dyn_fare='Y' then 3
+			when t1.dyn_fare='Y' and t3.dyn_fare='Y' and t3.dyn_fare='N' then 2
+			when t1.dyn_fare='Y' and t3.dyn_fare='N' and t3.dyn_fare='N' then 1
+			else 0 end as cnt
+		   from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+           join trip t3 on t2.trip_dest=t3.trip_source
+           where t1.trip_source='chn' and t3.trip_dest='ndl' 
+		   
+		   ) tblcost) tblmin where ran=1;
+		   
+		   
+mysql> select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,df1,df2,df3 from (
+    ->            select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,df1,df2,df3,dense_rank() over (order by cnt) ran from (
+    ->
+    ->    select t1.trip_id trip_id1,t1.trip_source,
+    ->    t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+    ->    t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+    -> t1.dyn_fare df1,t3.dyn_fare df2,t3.dyn_fare df3,
+    -> case when t1.dyn_fare='Y' and t3.dyn_fare='Y' and t3.dyn_fare='Y' then 3
+    -> when t1.dyn_fare='Y' and t3.dyn_fare='Y' and t3.dyn_fare='N' then 2
+    -> when t1.dyn_fare='Y' and t3.dyn_fare='N' and t3.dyn_fare='N' then 1
+    -> else 0 end as cnt
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            join trip t3 on t2.trip_dest=t3.trip_source
+    ->            where t1.trip_source='chn' and t3.trip_dest='ndl'
+    ->
+    ->    ) tblcost) tblmin where ran=1;
++----------+-------------+----------+------------+----------+------------+------------+------+------+------+
+| trip_id1 | trip_source | trip_id2 | trip_dest1 | trip_id3 | trip_dest2 | trip_dest3 | df1  | df2  | df3  |
++----------+-------------+----------+------------+----------+------------+------------+------+------+------+
+| tp03     | chn         | tp04     | hyd        | tp06     | bgl        | ndl        | Y    | N    | N    |
++----------+-------------+----------+------------+----------+------------+------------+------+------+------+
+1 row in set (0.00 sec)
+
+
+
+4	Fetch itinerary details from CHN to NDL which happens on same day
+
+mysql> select t1.trip_id trip_id1,t1.trip_source,
+    ->    t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+    ->    t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3
+    ->     from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            join trip t3 on t2.trip_dest=t3.trip_source
+    ->            where t1.trip_source='chn' and t3.trip_dest='ndl' and timediff(t3.trip_end_time,t1.trip_start_time)>0;
++----------+-------------+----------+------------+----------+------------+------------+
+| trip_id1 | trip_source | trip_id2 | trip_dest1 | trip_id3 | trip_dest2 | trip_dest3 |
++----------+-------------+----------+------------+----------+------------+------------+
+| tp03     | chn         | tp04     | hyd        | tp06     | bgl        | ndl        |
++----------+-------------+----------+------------+----------+------------+------------+
+1 row in set (0.00 sec)
+		   
+5	Fetch itinerary details from CHN to NDL which have mimum wait time at transit
+
+select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,time from (
+           
+		   
+		   
+		   select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,waitingtime from (
+           select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,waitingtime,dense_rank() over (order by waitingtime) ran from (
+		   select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,addtime(waitingtime1,waitingtime2) waitingtime from (
+           select t1.trip_id trip_id1,t1.trip_source,
+		   t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+		   t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+		   case when t2.trip_start_time>t1.trip_end_time then timediff(t2.trip_start_time,t1.trip_end_time) else
+		   timediff('24:00:00',timediff(t1.trip_end_time,t2.trip_start_time)) end as waitingtime1,
+		   case when t3.trip_start_time>t2.trip_end_time then timediff(t3.trip_start_time,t2.trip_end_time) else
+		   timediff('24:00:00',timediff(t2.trip_end_time,t3.trip_start_time)) end as waitingtime2
+		   from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+           join trip t3 on t2.trip_dest=t3.trip_source
+           where t1.trip_source='chn' and t3.trip_dest='ndl'
+		   )tbldifftime 
+		   ) tbltime) tblmin where ran=1;
+		   
+		   
+		   mysql> select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,waitingtime from (
+    ->            select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,waitingtime,dense_rank() over (order by waitingtime) ran from (
+    ->    select trip_id1,trip_source,trip_id2,trip_dest1,trip_id3,trip_dest2,trip_dest3,addtime(waitingtime1,waitingtime2) waitingtime from (
+    ->            select t1.trip_id trip_id1,t1.trip_source,
+    ->    t2.trip_id trip_id2,t1.trip_dest as trip_dest1,
+    ->    t3.trip_id trip_id3,t2.trip_dest as trip_dest2,t3.trip_dest as trip_dest3,
+    ->    case when t2.trip_start_time>t1.trip_end_time then timediff(t2.trip_start_time,t1.trip_end_time) else
+    ->    timediff('24:00:00',timediff(t1.trip_end_time,t2.trip_start_time)) end as waitingtime1,
+    ->    case when t3.trip_start_time>t2.trip_end_time then timediff(t3.trip_start_time,t2.trip_end_time) else
+    ->    timediff('24:00:00',timediff(t2.trip_end_time,t3.trip_start_time)) end as waitingtime2
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            join trip t3 on t2.trip_dest=t3.trip_source
+    ->            where t1.trip_source='chn' and t3.trip_dest='ndl'
+    ->    )tbldifftime
+    ->    ) tbltime) tblmin where ran=1;
++----------+-------------+----------+------------+----------+------------+------------+-------------+
+| trip_id1 | trip_source | trip_id2 | trip_dest1 | trip_id3 | trip_dest2 | trip_dest3 | waitingtime |
++----------+-------------+----------+------------+----------+------------+------------+-------------+
+| tp01     | chn         | tp02     | bgl        | tp05     | mum        | ndl        | 06:20:00    |
++----------+-------------+----------+------------+----------+------------+------------+-------------+
+1 row in set (0.00 sec)
+
+		   
+6	Fetch return itinerary details from NDL to CHN with mimum transits
+
+mysql> select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,trip_id3,trip_dest3,cnt from (
+    ->    select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,trip_id3,trip_dest3,cnt,dense_rank() over (order by cnt) rnk from (
+    ->    select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,trip_id3,trip_dest3,
+    ->    case when trip_dest2 is not null and trip_dest3 is not null then 2
+    ->            when trip_dest2 is not null and trip_dest3 is null then 1  else 0 end as cnt
+    ->    from (
+    ->    select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='chn' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='chn' then null else t2.trip_dest end as trip_dest2,
+    ->    case when t2.trip_dest='chn' then null else t3.trip_id end as trip_id3,
+    ->    case when t2.trip_dest='chn' then null else t3.trip_dest end as trip_dest3
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            join trip t3 on t2.trip_dest=t3.trip_source
+    ->            where (t1.trip_source='ndl' and t3.trip_dest='chn') or
+    ->    (t1.trip_source='ndl' and t2.trip_dest='chn') or
+    ->    (t1.trip_source='ndl' and t1.trip_dest='chn'))tbl1)tbl2)tbl3 where rnk=1;
++----------+-------------+------------+----------+------------+----------+------------+-----+
+| trip_id1 | trip_source | trip_dest1 | trip_id2 | trip_dest2 | trip_id3 | trip_dest3 | cnt |
++----------+-------------+------------+----------+------------+----------+------------+-----+
+| tp09     | ndl         | hyd        | tp10     | chn        | NULL     | NULL       |   1 |
++----------+-------------+------------+----------+------------+----------+------------+-----+
+1 row in set (0.00 sec)
+
+
+
+7	Fetch itinerary details from CHN to BGL before 11 AM
+
+
+mysql> select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,st1,st2
+    ->    from (
+    ->    select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_dest end as trip_dest2,
+    ->    t1.trip_start_time st1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_start_time end as st2
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            where (t1.trip_source='chn' and t2.trip_dest='bgl') or
+    ->    (t1.trip_source='chn' and t1.trip_dest='bgl')
+    ->    )chnbgl
+    ->    where st1<'14:00:00' and time(ifnull(st2,0))<'14:00:00';
++----------+-------------+------------+----------+------------+----------+----------+
+| trip_id1 | trip_source | trip_dest1 | trip_id2 | trip_dest2 | st1      | st2      |
++----------+-------------+------------+----------+------------+----------+----------+
+| tp01     | chn         | bgl        | NULL     | NULL       | 13:40:00 | NULL     |
+| tp03     | chn         | hyd        | tp04     | bgl        | 09:45:00 | 12:20:00 |
++----------+-------------+------------+----------+------------+----------+----------+
+2 rows in set (0.00 sec)
+
+mysql> select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,st1,st2
+    ->    from (
+    ->    select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_dest end as trip_dest2,
+    ->    t1.trip_start_time st1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_start_time end as st2
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            where (t1.trip_source='chn' and t2.trip_dest='bgl') or
+    ->    (t1.trip_source='chn' and t1.trip_dest='bgl')
+    ->    )chnbgl
+    ->    where st1<'13:00:00' and time(ifnull(st2,0))<'13:00:00';
++----------+-------------+------------+----------+------------+----------+----------+
+| trip_id1 | trip_source | trip_dest1 | trip_id2 | trip_dest2 | st1      | st2      |
++----------+-------------+------------+----------+------------+----------+----------+
+| tp03     | chn         | hyd        | tp04     | bgl        | 09:45:00 | 12:20:00 |
++----------+-------------+------------+----------+------------+----------+----------+
+1 row in set (0.00 sec)
+
+mysql> select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,st1,st2
+    ->    from (
+    ->    select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_dest end as trip_dest2,
+    ->    t1.trip_start_time st1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_start_time end as st2
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            where (t1.trip_source='chn' and t2.trip_dest='bgl') or
+    ->    (t1.trip_source='chn' and t1.trip_dest='bgl')
+    ->    )chnbgl
+    ->    where st1<'11:00:00' and time(ifnull(st2,0))<'11:00:00';
+Empty set (0.00 sec)
+mysql> select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,st1,st2
+    ->    from (
+    ->    select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_dest end as trip_dest2,
+    ->    t1.trip_start_time st1,
+    ->    case when t1.trip_dest='bgl' then null else t2.trip_start_time end as st2
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            where (t1.trip_source='chn' and t2.trip_dest='bgl') or
+    ->    (t1.trip_source='chn' and t1.trip_dest='bgl')
+    ->    )chnbgl
+    ->    where st1<'11:00:00';
++----------+-------------+------------+----------+------------+----------+----------+
+| trip_id1 | trip_source | trip_dest1 | trip_id2 | trip_dest2 | st1      | st2      |
++----------+-------------+------------+----------+------------+----------+----------+
+| tp03     | chn         | hyd        | tp04     | bgl        | 09:45:00 | 12:20:00 |
++----------+-------------+------------+----------+------------+----------+----------+
+1 row in set (0.00 sec)
+
+8	Fetch return itinerary details from NDL to CHN which happens on same day or which has less travel time
+
+mysql> select trip_id1,ts, td1,trip_id2,td2,trip_id3,td3,ttst,ttet,t1st,t1et,t2st,t2et,t3st,t3et,travel from (
+        select trip_id1,ts, td1,trip_id2,td2,trip_id3,td3,ttst,ttet,t1st,t1et,t2st,t2et,t3st,t3et,travel,
+        dense_rank() over (order by travel) ran from (
+        select trip_id1,ts, td1,trip_id2,td2,trip_id3,td3,ttst,ttet,t1st,t1et,t2st,t2et,t3st,t3et,
+        addtime(time(ifnull(time3,0)),addtime(time(ifnull(time1,0)),time(ifnull(time2,0)))) travel from (
+         select trip_id1,ts, td1,trip_id2,td2,trip_id3,td3,ttst,ttet,t1st,t1et,t2st,t2et,t3st,t3et,
+     case when t1et>t1st then timediff(t1et,t1st) else
+         timediff('24:00:00',timediff(t1st,t1et)) end as time1,
+        case when t2et>t2st then timediff(t2et,t2st) else
+        timediff('24:00:00',timediff(t2st,t2et)) end as time2,
+        case when t3et>t3st then timediff(t3et,t3st) else
+        timediff('24:00:00',timediff(t3st,t3et)) end as time3
+     from (
+     select trip_id1,triptime.trip_source ts,trip_dest1 td1,trip_id2,trip_dest2 td2,trip_id3,trip_dest3 td3,
+     triptime.trip_start_time ttst,triptime.trip_end_time ttet,tt1.trip_start_time t1st,tt1.trip_end_time t1et,
+     tt2.trip_start_time t2st,tt2.trip_end_time t2et,tt3.trip_start_time t3st,tt3.trip_end_time t3et
+     from(
+     select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+        case when t1.trip_dest='chn' then null else t2.trip_id end as trip_id2,
+        case when t1.trip_dest='chn' then null else t2.trip_dest end as trip_dest2,
+        case when t2.trip_dest='chn' then null else t3.trip_id end as trip_id3,
+        case when t2.trip_dest='chn' then null else t3.trip_dest end as trip_dest3,
+        t1.trip_start_time,
+        case when t1.trip_dest='chn' then t1.trip_end_time
+        when  t2.trip_dest='chn' then t2.trip_end_time
+        when  t3.trip_dest='chn' then t3.trip_end_time end as trip_end_time
+        from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+                join trip t3 on t2.trip_dest=t3.trip_source
+                where (t1.trip_source='ndl' and t3.trip_dest='chn') or
+        (t1.trip_source='ndl' and t2.trip_dest='chn') or
+        (t1.trip_source='ndl' and t1.trip_dest='chn')
+        )triptime left join trip tt1 on triptime.trip_id1=tt1.trip_id
+        left join trip tt2 on triptime.trip_id2=tt2.trip_id
+        left join trip tt3 on triptime.trip_id3=tt3.trip_id
+        ) triptime1
+        ) triptime2
+        ) triptime3
+        ) triptime4 where ran=1 or timediff(ttet,ttst)>0;
++----------+------+------+----------+------+----------+------+----------+----------+----------+----------+----------+----------+------+------+----------+
+| trip_id1 | ts   | td1  | trip_id2 | td2  | trip_id3 | td3  | ttst     | ttet     | t1st     | t1et     | t2st     | t2et     | t3st | t3et | travel   |
++----------+------+------+----------+------+----------+------+----------+----------+----------+----------+----------+----------+------+------+----------+
+| tp09     | ndl  | hyd  | tp10     | chn  | NULL     | NULL | 11:25:00 | 22:20:00 | 11:25:00 | 13:45:00 | 20:30:00 | 22:20:00 | NULL | NULL | 04:10:00 |
++----------+------+------+----------+------+----------+------+----------+----------+----------+----------+----------+----------+------+------+----------+
+1 row in set (0.00 sec)
+
+		   
+		   
+	mysql>    select trip_id1,trip_source,trip_dest1,trip_id2,trip_dest2,trip_id3,trip_dest3,trip_start_time,trip_end_time
+    -> from(
+    -> select distinct t1.trip_id trip_id1,t1.trip_source,t1.trip_dest as trip_dest1,
+    ->    case when t1.trip_dest='chn' then null else t2.trip_id end as trip_id2,
+    ->    case when t1.trip_dest='chn' then null else t2.trip_dest end as trip_dest2,
+    ->    case when t2.trip_dest='chn' then null else t3.trip_id end as trip_id3,
+    ->    case when t2.trip_dest='chn' then null else t3.trip_dest end as trip_dest3,
+    ->    t1.trip_start_time,
+    ->    case when t1.trip_dest='chn' then t1.trip_end_time
+    ->    when  t2.trip_dest='chn' then t2.trip_end_time
+    ->    when  t3.trip_dest='chn' then t3.trip_end_time end as trip_end_time
+    ->    from trip t1 join trip t2 on t1.trip_dest=t2.trip_source
+    ->            join trip t3 on t2.trip_dest=t3.trip_source
+    ->            where (t1.trip_source='ndl' and t3.trip_dest='chn') or
+    ->    (t1.trip_source='ndl' and t2.trip_dest='chn') or
+    ->    (t1.trip_source='ndl' and t1.trip_dest='chn')
+    ->    )triptime
+    ->    where timediff(trip_end_time,trip_start_time)>0;
++----------+-------------+------------+----------+------------+----------+------------+-----------------+---------------+
+| trip_id1 | trip_source | trip_dest1 | trip_id2 | trip_dest2 | trip_id3 | trip_dest3 | trip_start_time | trip_end_time |
++----------+-------------+------------+----------+------------+----------+------------+-----------------+---------------+
+| tp09     | ndl         | hyd        | tp10     | chn        | NULL     | NULL       | 11:25:00        | 22:20:00      |
++----------+-------------+------------+----------+------------+----------+------------+-----------------+---------------+
+1 row in set (0.00 sec)
+	   
+		   
+9	Fetch trip details which have less travel time
+
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime from (
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime,dense_rank() over (order by traveltime) ran from (
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,
+case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else 
+timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as traveltime from trip
+)tbltravel
+)mintravel where ran=1;
+
+mysql> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime from (
+    -> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime,dense_rank() over (order by traveltime) ran from (
+    -> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,
+    -> case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else
+    -> timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as traveltime from trip
+    -> )tbltravel
+    -> )mintravel where ran=1;
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+| trip_id | trip_source | trip_dest | trip_start_time | trip_end_time | trip_cost | dyn_fare | traveltime |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+| tp02    | bgl         | mum       | 18:20:00        | 19:20:00      |      6700 | Y        | 01:00:00   |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+1 row in set (0.00 sec)
+
+10	Fetch trip details which have high travel time and no dynamic pricing
+
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime from (
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime,dense_rank() over (order by traveltime desc) ran from (
+select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,
+case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else 
+timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as traveltime from trip
+)tbltravel
+)mintravel where ran=1 and dyn_fare='N';
+
+mysql> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime from (
+    -> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,traveltime,dense_rank() over (order by traveltime desc) ran from (
+    -> select trip_id,trip_source,trip_dest,trip_start_time,trip_end_time,trip_cost,dyn_fare,
+    -> case when trip_end_time>trip_start_time then timediff(trip_end_time,trip_start_time) else
+    -> timediff('24:00:00',timediff(trip_start_time,trip_end_time)) end as traveltime from trip
+    -> )tbltravel
+    -> )mintravel where ran=1 and dyn_fare='N';
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+| trip_id | trip_source | trip_dest | trip_start_time | trip_end_time | trip_cost | dyn_fare | traveltime |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+| tp08    | mum         | bgl       | 20:20:00        | 23:45:00      |      5000 | N        | 03:25:00   |
++---------+-------------+-----------+-----------------+---------------+-----------+----------+------------+
+1 row in set (0.00 sec)

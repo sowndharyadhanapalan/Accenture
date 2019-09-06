@@ -1,0 +1,190 @@
+create table author(AUTHOR_ID varchar(7) primary key,AUTHOR_NAME varchar(40),AUTHOR_COUNTRY varchar(10),AUTHOR_CITY varchar(20),PUBLISH_ID varchar(5));
+insert into author values('AUT001','William Norton','UK','Cambridge','PB01');
+insert into author values('AUT002','C. J. Wilde','USA','San Francisco','PB04');
+insert into author values('AUT003','John Betjeman Hunter','RUSSIA','Moscow','PB01');
+insert into author values('AUT004','John Betjeman Hunter','CANADA','Toronto','PB03');
+insert into author values('AUT005','S.B.Swaminathan','INDIA','Delhi','PB01');
+insert into author values('AUT006','Butler Andre','UK','London','PB03');
+insert into author values('AUT007','E. Howard','EUROPE','Berlin','PB03');
+insert into author values('AUT008','Andrew Jeff','GERMANY','Berlin','PB02');
+insert into author values('AUT009','Drek Tailor','Australia','Melbourne','PB01');
+insert into author values('AUT010','Mary Coffing','USA','New Jersy','PB04');
+
+
+create table publisher(PUBLISH_ID varchar(5) primary key,PUBLISH_NAME varchar(40),PUBLISH_CITY varchar(10),PUBLISH_START_DATE date,BRANCHES int);
+
+
+insert into publisher values('PB01','Jex Max Publication','Berlin',STR_TO_DATE('4/21/1929','%m/%d/%Y'),10);
+insert into publisher values('PB02','Summer Night Publication','Canada',STR_TO_DATE('8/31/2019','%m/%d/%Y'),25);
+insert into publisher values('PB03','Novel Publisher Ltd.','London',STR_TO_DATE('8/10/2018','%m/%d/%Y'),11);
+insert into publisher values('PB04','Mark Book Sales','New Jersy',STR_TO_DATE('5/24/2008','%m/%d/%Y'),9);
+
+mysql> select * from author;
++-----------+----------------------+----------------+---------------+------------+
+| AUTHOR_ID | AUTHOR_NAME          | AUTHOR_COUNTRY | AUTHOR_CITY   | PUBLISH_ID |
++-----------+----------------------+----------------+---------------+------------+
+| AUT001    | William Norton       | UK             | Cambridge     | PB01       |
+| AUT002    | C. J. Wilde          | USA            | San Francisco | PB04       |
+| AUT003    | John Betjeman Hunter | RUSSIA         | Moscow        | PB01       |
+| AUT004    | John Betjeman Hunter | CANADA         | Toronto       | PB03       |
+| AUT005    | S.B.Swaminathan      | INDIA          | Delhi         | PB01       |
+| AUT006    | Butler Andre         | UK             | London        | PB03       |
+| AUT007    | E. Howard            | EUROPE         | Berlin        | PB03       |
+| AUT008    | Andrew Jeff          | GERMANY        | Berlin        | PB02       |
+| AUT009    | Drek Tailor          | Australia      | Melbourne     | PB01       |
+| AUT010    | Mary Coffing         | USA            | New Jersy     | PB04       |
++-----------+----------------------+----------------+---------------+------------+
+10 rows in set (0.00 sec)
+
+mysql> select * from publisher;
++------------+--------------------------+--------------+--------------------+----------+
+| PUBLISH_ID | PUBLISH_NAME             | PUBLISH_CITY | PUBLISH_START_DATE | BRANCHES |
++------------+--------------------------+--------------+--------------------+----------+
+| PB01       | Jex Max Publication      | Berlin       | 1929-04-21         |       10 |
+| PB02       | Summer Night Publication | Canada       | 2019-08-31         |       25 |
+| PB03       | Novel Publisher Ltd.     | London       | 2018-08-10         |       11 |
+| PB04       | Mark Book Sales          | New Jersy    | 2008-05-24         |        9 |
++------------+--------------------------+--------------+--------------------+----------+
+4 rows in set (0.00 sec)
+
+
+Fetch publisher information who have publish_city <> author_city and check if publish_city = author_country . 
+display the correct publisher_city along with other publisher information based on author_city
+
+
+select year(current_date)-year(publish_start_date) from publisher;
+
+
+select author_name,author_country,publish_city,publish_start_date,branches,year(current_date)-year(publish_start_date) as year,
+dense_rank() over (group by order by branches desc) from author a join publisher p on a.publish_id=p.publish_id;
+
+
+
+select select author_name,author_country,publish_city,publish_start_date,branches,year(current_date)-year(publish_start_date) as year from author a join publisher p on a.publish_id=p.publish_id;
+
+1	Fetch publisher information who have publish_city <> author_city and check if publish_city = author_country . display the correct publisher_city along with other publisher information based on author_city
+
+mysql> select AUTHOR_ID,author_name,author_country,AUTHOR_CITY,p.PUBLISH_ID,PUBLISH_NAME,publish_city,publish_start_date,branches from
+    -> publisher p join author a on a.publish_id=p.publish_id where publish_city <> author_city and publish_city = author_country;
+Empty set (0.03 sec)
+
+2	Fetch authors_name, author_country, publish_city, publish_start_date, branches who have publications with most number of branches by century
+
+select author_name, author_country, publish_city, publish_start_date, branches from author a join (
+select *,dense_rank() over (partition by century order by branches ) ran from (
+select PUBLISH_ID,PUBLISH_NAME,publish_city,publish_start_date,branches,round((year(publish_start_date)/100)+1) century from publisher)cen)
+ pub on a.publish_id=pub.publish_id where ran=1;
+
+mysql> select author_name, author_country, publish_city, publish_start_date, branches from author a join (
+    -> select *,dense_rank() over (partition by century order by branches ) ran from (
+    -> select PUBLISH_ID,PUBLISH_NAME,publish_city,publish_start_date,branches,round((year(publish_start_date)/100)+1) century from publisher)cen)
+    ->  pub on a.publish_id=pub.publish_id where ran=1;
++----------------------+----------------+--------------+--------------------+----------+
+| author_name          | author_country | publish_city | publish_start_date | branches |
++----------------------+----------------+--------------+--------------------+----------+
+| William Norton       | UK             | Berlin       | 1929-04-21         |       10 |
+| C. J. Wilde          | USA            | New Jersy    | 2008-05-24         |        9 |
+| John Betjeman Hunter | RUSSIA         | Berlin       | 1929-04-21         |       10 |
+| S.B.Swaminathan      | INDIA          | Berlin       | 1929-04-21         |       10 |
+| Drek Tailor          | Australia      | Berlin       | 1929-04-21         |       10 |
+| Mary Coffing         | USA            | New Jersy    | 2008-05-24         |        9 |
++----------------------+----------------+--------------+--------------------+----------+
+6 rows in set (0.00 sec)
+
+3	Fetch publisher details who have authors in same city and get corresponding author details who belong to same country
+4	Fetch authors who have incorrect author_country for same author_city. Display correct author_country along with all author_information
+5	Fetch authors who do not have publisher from their country
+
+select AUTHOR_ID,author_name,author_country,AUTHOR_CITY,p.PUBLISH_ID from author a 
+join publisher p on a.publish_id=p.publish_id and author_city=publish_city;
+
+mysql> select AUTHOR_ID,author_name,author_country,AUTHOR_CITY,p.PUBLISH_ID from author a
+    -> join publisher p on a.publish_id=p.publish_id and author_city=publish_city;
++-----------+--------------+----------------+-------------+------------+
+| AUTHOR_ID | author_name  | author_country | AUTHOR_CITY | PUBLISH_ID |
++-----------+--------------+----------------+-------------+------------+
+| AUT006    | Butler Andre | UK             | London      | PB03       |
+| AUT010    | Mary Coffing | USA            | New Jersy   | PB04       |
++-----------+--------------+----------------+-------------+------------+
+2 rows in set (0.00 sec)
+
+
+6	Fetch author details if first character of publisher name is same as author_name
+mysql> select author_name,author_country,author_city,a.publish_id from author a join publisher on left(author_name,1)=left(publish_name,1);
++----------------------+----------------+-------------+------------+
+| author_name          | author_country | author_city | publish_id |
++----------------------+----------------+-------------+------------+
+| John Betjeman Hunter | RUSSIA         | Moscow      | PB01       |
+| John Betjeman Hunter | CANADA         | Toronto     | PB03       |
+| S.B.Swaminathan      | INDIA          | Delhi       | PB01       |
+| Mary Coffing         | USA            | New Jersy   | PB04       |
++----------------------+----------------+-------------+------------+
+4 rows in set (0.00 sec)
+
+7	Fetch author details who have more than one initial before their name
+mysql> select * from author
+    -> where locate('.',author_name,locate('.',author_name)+1)>3;
++-----------+-----------------+----------------+---------------+------------+
+| AUTHOR_ID | AUTHOR_NAME     | AUTHOR_COUNTRY | AUTHOR_CITY   | PUBLISH_ID |
++-----------+-----------------+----------------+---------------+------------+
+| AUT002    | C. J. Wilde     | USA            | San Francisco | PB04       |
+| AUT005    | S.B.Swaminathan | INDIA          | Delhi         | PB01       |
++-----------+-----------------+----------------+---------------+------------+
+2 rows in set (0.02 sec)
+
+8	Fetch author details who do not have initial in their name
+mysql> select * from author
+    -> where instr(author_name,'.')=0;
++-----------+----------------------+----------------+-------------+------------+
+| AUTHOR_ID | AUTHOR_NAME          | AUTHOR_COUNTRY | AUTHOR_CITY | PUBLISH_ID |
++-----------+----------------------+----------------+-------------+------------+
+| AUT001    | William Norton       | UK             | Cambridge   | PB01       |
+| AUT003    | John Betjeman Hunter | RUSSIA         | Moscow      | PB01       |
+| AUT004    | John Betjeman Hunter | CANADA         | Toronto     | PB03       |
+| AUT006    | Butler Andre         | UK             | London      | PB03       |
+| AUT008    | Andrew Jeff          | GERMANY        | Berlin      | PB02       |
+| AUT009    | Drek Tailor          | Australia      | Melbourne   | PB01       |
+| AUT010    | Mary Coffing         | USA            | New Jersy   | PB04       |
++-----------+----------------------+----------------+-------------+------------+
+7 rows in set (0.00 sec)
+9	Fetch author details who have lower case in author_name
+
+
+SELECT *
+FROM author
+WHERE UPPER(author_COUNTRY) != BINARY(author_COUNTRY);
+mysql> SELECT *
+    -> FROM author
+    -> WHERE UPPER(author_COUNTRY) != BINARY(author_COUNTRY);
++-----------+-------------+----------------+-------------+------------+
+| AUTHOR_ID | AUTHOR_NAME | AUTHOR_COUNTRY | AUTHOR_CITY | PUBLISH_ID |
++-----------+-------------+----------------+-------------+------------+
+| AUT009    | Drek Tailor | Australia      | Melbourne   | PB01       |
++-----------+-------------+----------------+-------------+------------+
+1 row in set (0.02 sec)
+
+SELECT UPPER(author_COUNTRY),BINARY(author_COUNTRY)
+FROM author
+WHERE UPPER(author_COUNTRY) != BINARY(author_COUNTRY);
+
+10	Fetch author information and publisher information who have publisher with recent publish_start_date.
+mysql> select AUTHOR_ID,AUTHOR_NAME,AUTHOR_COUNTRY,AUTHOR_CITY,p.publish_id,publish_name,publish_city,publish_start_date,branches from author a join (
+    -> select publish_id,publish_name,publish_city,publish_start_date,branches, dense_rank() over (order by publish_start_date desc) ran from publisher) p 
+	on a.publish_id=p.publish_id where ran=1;
++-----------+-------------+----------------+-------------+------------+--------------------------+--------------+--------------------+----------+
+| AUTHOR_ID | AUTHOR_NAME | AUTHOR_COUNTRY | AUTHOR_CITY | publish_id | publish_name             | publish_city | publish_start_date | branches |
++-----------+-------------+----------------+-------------+------------+--------------------------+--------------+--------------------+----------+
+| AUT008    | Andrew Jeff | GERMANY        | Berlin      | PB02       | Summer Night Publication | Canada       | 2019-08-31         |       25 |
++-----------+-------------+----------------+-------------+------------+--------------------------+--------------+--------------------+----------+
+1 row in set (0.00 sec)
+11	Fetch count of authors belong to same continent(eg. Berlin -> Europe)
+
+
+
+
+
+
+
+
+
+
