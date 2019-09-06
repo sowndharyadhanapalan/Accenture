@@ -1,0 +1,257 @@
+mysql> select * from employee;
++--------+---------------+---------+----------+---------+
+| EMP_ID | EMP_NAME      | DESC_ID | PLACE_ID | PROJ_ID |
++--------+---------------+---------+----------+---------+
+|      1 | Vijaykumar    |      10 |        1 |       3 |
+|      2 | Raja          |      20 |        3 |       4 |
+|      3 | Abhisheksingh |      10 |        4 |       5 |
+|      4 | Santosh       |      30 |        2 |       1 |
+|      5 | Kribakaran    |      20 |        3 |       2 |
+|      6 | Divya         |      40 |        5 |       3 |
+|      7 | Suganya       |      10 |        3 |       4 |
+|      8 | Shalini       |      20 |        2 |       2 |
+|      9 | Avantika      |      30 |        1 |       5 |
+|     10 | Ajay          |      50 |        6 |       8 |
+|     11 | Tamilselvan   |      60 |        7 |       6 |
+|     12 | Vinodha       |      70 |        6 |       7 |
+|     13 | Karthick      |      60 |        5 |       2 |
+|     14 | Sanjay        |      70 |        6 |       5 |
+|     15 | Meera         |      60 |        8 |       7 |
++--------+---------------+---------+----------+---------+
+15 rows in set (0.23 sec)
+mysql> select * from designation;
++---------+-----------+-----------+
+| DESC_ID | DESC_NAME | ROLE_TYP  |
++---------+-----------+-----------+
+|      10 | ASE       | DEVELOPER |
+|      20 | SE        | DEVELOPER |
+|      30 | SSE       | DEVELOPER |
+|      40 | TL        | LEAD      |
+|      50 | AM        | LEAD      |
+|     100 | SM        | MANAGER   |
++---------+-----------+-----------+
+6 rows in set (0.05 sec)
+mysql> select * from place;
++----------+------------+-----------+
+| PLACE_ID | PLACE_DESC | PLACE_TYP |
++----------+------------+-----------+
+|        1 | Chennai    | Offshore  |
+|        2 | Bangalore  | Offshore  |
+|        3 | Hyderabad  | Offshore  |
+|        4 | Mexico     | Nearshore |
+|        5 | Newyork    | Onshore   |
+|       10 | Canada     | Onshore   |
++----------+------------+-----------+
+6 rows in set (0.02 sec)
+create table project1(PROJ_ID int,PROJ_NAME varchar(60));
+insert into project1 values(1,'Neon Data & Analytics');
+insert into project1 values(2,'ASG Data Warehousing');
+insert into project1 values(3,'Pepsi Data Mart');
+insert into project1 values(4,'Microsoft');
+insert into project1 values(5,'Amazon Cloud Logistics');
+insert into project1 values(10,'Flipkart');
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+"Fetch EMP_ID,EMP_NAME,DESC_NAME,PLACE_DESC,EMP_DESC_CNT,EMP_PLACE_CNT
+EMP_DESC_CNT --- > No Of Employess Each Designation
+EMP_PLACE_CNT ---> No Of Employess Each Place
+List All the Employees in The employess
+If there is null in Place or Designation show as 'OTHERS'"								
+
+ 
+mysql> select EMP_ID,EMP_NAME,
+    ->      ifnull(DESC_NAME,'others') as DESC_NAME,
+    ->       ifnull(PLACE_DESC,'others') as PLACE_DESC,count(*) over (partition by desc_name) EMP_DESC_CNT,
+    ->   count(*) over (partition by place_desc) EMP_PLACE_CNT
+    ->        from employee e left join designation d on e.desc_id=d.desc_id
+    ->          left join place p on e.place_id=p.place_id
+    ->       order by emp_id;
++--------+---------------+-----------+------------+--------------+---------------+
+| EMP_ID | EMP_NAME      | DESC_NAME | PLACE_DESC | EMP_DESC_CNT | EMP_PLACE_CNT |
++--------+---------------+-----------+------------+--------------+---------------+
+|      1 | Vijaykumar    | ASE       | Chennai    |            3 |             2 |
+|      2 | Raja          | SE        | Hyderabad  |            3 |             3 |
+|      3 | Abhisheksingh | ASE       | Mexico     |            3 |             1 |
+|      4 | Santosh       | SSE       | Bangalore  |            2 |             2 |
+|      5 | Kribakaran    | SE        | Hyderabad  |            3 |             3 |
+|      6 | Divya         | TL        | Newyork    |            1 |             2 |
+|      7 | Suganya       | ASE       | Hyderabad  |            3 |             3 |
+|      8 | Shalini       | SE        | Bangalore  |            3 |             2 |
+|      9 | Avantika      | SSE       | Chennai    |            2 |             2 |
+|     10 | Ajay          | AM        | others     |            1 |             5 |
+|     11 | Tamilselvan   | others    | others     |            5 |             5 |
+|     12 | Vinodha       | others    | others     |            5 |             5 |
+|     13 | Karthick      | others    | Newyork    |            5 |             2 |
+|     14 | Sanjay        | others    | others     |            5 |             5 |
+|     15 | Meera         | others    | others     |            5 |             5 |
++--------+---------------+-----------+------------+--------------+---------------+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+"Fetch EMP_ID,EMP_NAME,DESC_NAME,PLACE_DESC,PROJ_NAME
+
+List All the Employees who is working in 'Data' or 'Cloud' project. 
+
+Note: Find Respective  keyword in project name"								
+
+  
+mysql> select EMP_ID,EMP_NAME,
+     ifnull(DESC_NAME,'others') as DESC_NAME,
+     ifnull(PLACE_DESC,'others') as PLACE_DESC,PROJ_NAME as PROJ_NAME
+     from employee e left join designation d on e.desc_id=d.desc_id
+      left join place p on e.place_id=p.place_id
+      join project1 pp on e.proj_id=pp.proj_id
+     and (proj_name like '%Data%' or proj_name like '%Cloud%')
+     order by emp_id;
++--------+---------------+-----------+------------+------------------------+
+| EMP_ID | EMP_NAME      | DESC_NAME | PLACE_DESC | PROJ_NAME              |
++--------+---------------+-----------+------------+------------------------+
+|      1 | Vijaykumar    | ASE       | Chennai    | Pepsi Data Mart        |
+|      3 | Abhisheksingh | ASE       | Mexico     | Amazon Cloud Logistics |
+|      4 | Santosh       | SSE       | Bangalore  | Neon Data & Analytics  |
+|      5 | Kribakaran    | SE        | Hyderabad  | ASG Data Warehousing   |
+|      6 | Divya         | TL        | Newyork    | Pepsi Data Mart        |
+|      8 | Shalini       | SE        | Bangalore  | ASG Data Warehousing   |
+|      9 | Avantika      | SSE       | Chennai    | Amazon Cloud Logistics |
+|     13 | Karthick      | others    | Newyork    | ASG Data Warehousing   |
+|     14 | Sanjay        | others    | others     | Amazon Cloud Logistics |
++--------+---------------+-----------+------------+------------------------+
+9 rows in set (0.00 sec)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+"Fetch EMP_NAME,PLACE_DESC
+
+Show only employees working as higest grade in each place,  If two employees in same grade use minimum Project_id to pick one,
+
+Use DESC_ID, PLACE_ID & PROJECT_ID to define Grades "								
+
+
+mysql> select * from (
+    select EMP_ID,EMP_NAME,DESC_NAME,PLACE_DESC,PROJ_NAME,dense_rank() over (partition by e.place_id order by e.desc_id desc,e.proj_id ) rn
+    from employee e  join designation d on e.desc_id=d.desc_id
+    join place p on e.place_id=p.place_id
+	join project1 pp on e.proj_id=pp.proj_id)a where rn=1;
+ 
++--------+---------------+-----------+------------+------------------------+----+
+| EMP_ID | EMP_NAME      | DESC_NAME | PLACE_DESC | PROJ_NAME              | rn |
++--------+---------------+-----------+------------+------------------------+----+
+|      9 | Avantika      | SSE       | Chennai    | Amazon Cloud Logistics |  1 |
+|      4 | Santosh       | SSE       | Bangalore  | Neon Data & Analytics  |  1 |
+|      5 | Kribakaran    | SE        | Hyderabad  | ASG Data Warehousing   |  1 |
+|      3 | Abhisheksingh | ASE       | Mexico     | Amazon Cloud Logistics |  1 |
+|      6 | Divya         | TL        | Newyork    | Pepsi Data Mart        |  1 |
++--------+---------------+-----------+------------+------------------------+----+
+5 rows in set (0.00 sec)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+create table customer(Customer_id int,Cust_Name varchar(10),City varchar(10),Priority_num int,Salesman_id int,Purchased_Amount int);
+insert into customer values(10,'James','Chennai',1,1,10000);
+insert into customer values(20,'Ricky','Chennai',1,3,8000);
+insert into customer values(30,'Ramu','Bangalore',1,2,8000);
+insert into customer  values(40,'Jyothi','Hyderabad',2,3,9000);
+insert into customer values(50,'Amaran','Chennai',1,4,3000);
+insert into customer values(60,'Akilan','Hyderabad'	,2,3,6000);
+insert into customer values(70,'Arun','Chennai',2,5,5000);
+insert into customer values(80,'Dinesh','Mumbai',2,	4,6000);
+
+
+create table Salesman(Salesman_Id int	,Salesman_Name varchar(10),City varchar(10),Sales_Manager_id int,Monthly_Target int);
+insert into salesman values(1,'John','Chennai',2,10000);
+insert into salesman values(2,'Abraham','Bangalore',4,21000);
+insert into salesman values(3,'Raju','Hyderabad',4,21000);
+insert into salesman values(4,'Srinath','Mumbai',5,9000);
+insert into salesman values(5,'Vijay','Chennai',6,4000);
+insert into salesman values(6,'Balaji','Hyderabad',6,15000);
+
+mysql> select * from customer;
++-------------+-----------+-----------+--------------+-------------+------------------+
+| Customer_id | Cust_Name | City      | Priority_num | Salesman_id | Purchased_Amount |
++-------------+-----------+-----------+--------------+-------------+------------------+
+|          10 | James     | Chennai   |            1 |           1 |            10000 |
+|          20 | Ricky     | Chennai   |            1 |           3 |             8000 |
+|          40 | Jyothi    | Hyderabad |            2 |           3 |             9000 |
+|          50 | Amaran    | Chennai   |            1 |           4 |             3000 |
+|          60 | Akilan    | Hyderabad |            2 |           3 |             6000 |
+|          70 | Arun      | Chennai   |            2 |           5 |             5000 |
+|          80 | Dinesh    | Mumbai    |            2 |           4 |             6000 |
+|          30 | Ramu      | Bangalore |            1 |           2 |             8000 |
++-------------+-----------+-----------+--------------+-------------+------------------+
+8 rows in set (0.00 sec)
+
+mysql> select * from salesman;
++-------------+---------------+-----------+------------------+----------------+
+| Salesman_Id | Salesman_Name | City      | Sales_Manager_id | Monthly_Target |
++-------------+---------------+-----------+------------------+----------------+
+|           1 | John          | Chennai   |                2 |          10000 |
+|           2 | Abraham       | Bangalore |                4 |          21000 |
+|           3 | Raju          | Hyderabad |                4 |          21000 |
+|           4 | Srinath       | Mumbai    |                5 |           9000 |
+|           5 | Vijay         | Chennai   |                6 |           4000 |
+|           6 | Balaji        | Hyderabad |                6 |          15000 |
++-------------+---------------+-----------+------------------+----------------+
+6 rows in set (0.04 sec)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+ "Fetch Salesman manger Name  & Customer Name 
+
+
+Show Only the Priority Customer based on the Purchased Amount "				
+
+
+	
+
+	 mysql> select sales_manager_name,cust_name from (
+     select cust_name,s1.salesman_id,s1.sales_manager_id,s2.salesman_name sales_manager_name,purchased_amount,
+     dense_rank() over (partition by s1.sales_manager_id order by purchased_amount desc) rn from customer c
+     join salesman s1 on c.salesman_id=s1.salesman_id join salesman s2
+     on s1.sales_manager_id=s2.salesman_id)sal
+     where rn=1;
++--------------------+-----------+
+| sales_manager_name | cust_name |
++--------------------+-----------+
+| Abraham            | James     |
+| Srinath            | Jyothi    |
+| Vijay              | Dinesh    |
+| Balaji             | Arun      |
++--------------------+-----------+
+4 rows in set (0.00 sec)
+ 
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Update the Purchased Monthly target for each sales person based on the Purchase amount 				
+	
+
+update salesman s
+inner join (select salesman_id,sum(purchased_amount) pa from customer group by  salesman_id) c on s.salesman_id=c.salesman_id and  monthly_target<pa
+set s.monthly_target=c.pa;
+
+mysql> select * from salesman;
++-------------+---------------+-----------+------------------+----------------+
+| Salesman_Id | Salesman_Name | City      | Sales_Manager_id | Monthly_Target |
++-------------+---------------+-----------+------------------+----------------+
+|           1 | John          | Chennai   |                2 |          10000 |
+|           2 | Abraham       | Bangalore |                4 |          21000 |
+|           3 | Raju          | Hyderabad |                4 |          23000 |
+|           4 | Srinath       | Mumbai    |                5 |           9000 |
+|           5 | Vijay         | Chennai   |                6 |           5000 |
+|           6 | Balaji        | Hyderabad |                6 |          15000 |
++-------------+---------------+-----------+------------------+----------------+
+6 rows in set (0.00 sec)
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
